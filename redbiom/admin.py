@@ -163,21 +163,33 @@ def create_context(name, description):
     ScriptManager.load_scripts()
 
 
-def delete_study_by_id(study_id):
+def delete_studies_by_id(context, study_ids):
     """
     Given the ID of a study, deletes that study from the redbiom
     database.
 
     Parameters
     ----------
+    context : str
+        The context from which to delete the studies
     study_id : int
         The id of the study to delete
 
     Redis command summary
     ---------------------
     DEL study_id
+
+    Returns
+    -------
+    int
+        The number of samples deleted.
     """
-    pass
+    import redbiom._requests
+
+    delete = redbiom._requests.make_delete()
+    for study_id in study_ids:
+        delete(context, 'DEL' ,study_id)
+    return len(study_ids)
 
 
 def load_sample_data(table, context, tag=None, redis_protocol=False):

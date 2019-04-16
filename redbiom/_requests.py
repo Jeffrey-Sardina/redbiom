@@ -91,6 +91,19 @@ def make_get(config):
     return f
 
 
+def make_delete(config):
+    """Factory function: produce a delete() method"""
+    import redbiom
+    s = get_session()
+    config = redbiom.get_config()
+
+    def f(context, cmd, data):
+        payload = _format_request(context, cmd, data)
+        url = '/'.join([config['hostname'], payload])
+        return _parse_validate_request(s.get(url), cmd)
+    return f
+
+
 def make_script_exec(config):
     """Factory function: produce a script_exec() method"""
     import redbiom
