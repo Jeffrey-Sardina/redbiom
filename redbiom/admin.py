@@ -165,6 +165,33 @@ def create_context(name, description):
 
 def delete_studies_by_id(context, study_ids):
     """
+    Given the ID of studies, deletes those studies from
+    the redbiom database.
+
+    Parameters
+    ----------
+    context : str
+        The context from which to delete the studies
+    study_id : int
+        The id of the study to delete
+    delete : function
+        The delete function to use, or redbiom._requests.make_delete() is none
+        is given
+
+    Redis command summary
+    ---------------------
+    DEL study_id
+    """
+    import redbiom._requests
+
+    delete = redbiom._requests.make_delete()
+    for study_id in study_ids:
+        delete_study_by_id(context, study_id, delete)
+    return len(study_ids)
+
+
+def delete_study_by_id(context, study_id, delete = redbiom._requests.make_delete()):
+    """
     Given the ID of a study, deletes that study from the redbiom
     database.
 
@@ -186,10 +213,7 @@ def delete_studies_by_id(context, study_ids):
     """
     import redbiom._requests
 
-    delete = redbiom._requests.make_delete()
-    for study_id in study_ids:
-        delete(context, 'DEL' ,study_id)
-    return len(study_ids)
+    delete(context, 'DEL' ,study_id)
 
 
 def load_sample_data(table, context, tag=None, redis_protocol=False):

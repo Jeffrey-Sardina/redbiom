@@ -100,7 +100,7 @@ def make_delete(config):
     def f(context, cmd, data):
         payload = _format_request(context, cmd, data)
         url = '/'.join([config['hostname'], payload])
-        return _parse_validate_request(s.get(url), cmd)
+        return _parse_validate_request(s.delete(url), cmd)
     return f
 
 

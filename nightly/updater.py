@@ -10,7 +10,7 @@ import json
 import hashlib
 import random
 import time
-import nightly.diff
+from nightly import diff
 
 
 # I have adapted this code from an original file used by the Knight Lab to perform server updates.
@@ -190,6 +190,28 @@ def load_sample_data(tag, context, path):
     return nsdat
 
 
+def delete_sample_data(study_id, tag, context, path):
+    import traceback
+    if not os.path.exists(path):
+        print("Unable to find: %s" % path)
+        return 0
+
+    table = biom.load_table(path)
+    try:
+        ndeleted = redbiom.admin.delete_studies_by_id(context, tag)
+    except ValueError:
+        print("unable to load: %s, %s, %s" % (str(tag), str(context), str(path)))
+        nsdat = 0
+    except Exception as e:
+        # there are some studies in which there are samples in the biom table
+        # which lack metadata
+
+        print(tag, context, path)
+        traceback.print_exc()
+        raise
+    return ndeleted
+
+
 def load_study_metadata_of_list(studies_sublist, attempt_load=True):
     """
     For a given lsit of studies, calls load_study_metadata on all
@@ -235,7 +257,8 @@ def equal_slices(super_list, sublist_number):
     return slices
 
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
+def update():
     # Take redbiom out of read-only mode so that it can be updated
     redbiom.admin.ScriptManager.load_scripts(read_only=False)
 
@@ -263,6 +286,28 @@ if __name__ == '__main__':
     modified_study_ids = [item[0] for item in modified]
 
     # Now load the data into redbiom
+    with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
+        nsamp = par(joblib.delayed(load_sample_data)(t, c, p)
+                    for row in ids_tags_contexts_paths
+                     for i, t, c, p in row
+                      if i[0] in modified_study_ids or i in added)
+    #And delete anything that is not in the new set
+    with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
+        nsamp = par(joblib.delayed(delete_sample_data)(i, t, c, p)
+                    for row in ids_tags_contexts_paths
+                     for i, t, c, p in row
+                      if i in deleted)
+
+    # Put redbiom back into read-only mode for security
+    redbiom.admin.ScriptManager.load_scripts(read_only=True)
+    
+    #Now that data has bee uploaded, write the most recent data down as the "old" data
+    with open(study_data_old_name, 'w') as last_study_data:
+        print(study_data_new, file=last_study_data)
+    
+    #Old method
+    '''
+    # Now load the data into redbiom
     # I need a way to delete the studies that were deleted. 
     with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
         nsamp = par(joblib.delayed(load_sample_data)(t, c, p)
@@ -272,7 +317,4 @@ if __name__ == '__main__':
 
     # Put redbiom back into read-only mode for security
     redbiom.admin.ScriptManager.load_scripts(read_only=True)
-
-    #Now that data has bee uploaded, write the most recent data down as the "old" data
-    with open(study_data_old_name, 'w') as last_study_data:
-        print(study_data_new, file=last_study_data)
+    '''

@@ -84,7 +84,7 @@ def diff(study_data_old, study_data_new):
 
     return added, deleted, modified
 
-
+'''
 if __name__ == "__main__":
     #Get the study data from files
     study_data_old = load_state_file('truncated.json')
@@ -102,3 +102,4 @@ if __name__ == "__main__":
     print(deleted)
     print('add')
     print(added)
+'''

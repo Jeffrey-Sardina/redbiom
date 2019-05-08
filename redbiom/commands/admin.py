@@ -98,3 +98,11 @@ def writable():
     import redbiom.admin
     redbiom.admin.ScriptManager.drop_scripts()
     redbiom.admin.ScriptManager.load_scripts(read_only=False)
+
+@admin.command(name='autoupdate')
+def autoupdate():
+    #This is just for debug, remove later
+    print('running autoupdate')
+
+    from nightly import updater
+    updater.update()
