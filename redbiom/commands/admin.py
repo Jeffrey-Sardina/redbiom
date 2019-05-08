@@ -101,8 +101,7 @@ def writable():
 
 @admin.command(name='autoupdate')
 def autoupdate():
-    #This is just for debug, remove later
-    print('running autoupdate')
+    "Run an auto update of the redbiom server from the Qiita database"
 
     from nightly import updater
     updater.update()
