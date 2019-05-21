@@ -110,9 +110,7 @@ def get_biom_path(art):
     return biompath
 
 
-#Added study param to I do not need to do study = qiita_db.study.Study(study_id)
-def load_study_metadata(study, study_id, attempt_load):
-    #study = qiita_db.study.Study(study_id)
+def get_ids_tags_contexts_paths(study, study_id):
     artifacts = usable_artifacts(study.artifacts())
 
     # if we don't have artifacts, then there isn't a reason to go on.
@@ -136,37 +134,38 @@ def load_study_metadata(study, study_id, attempt_load):
         redbiom.admin.create_context(context, description)
         ids_tags_contexts_paths.append((study_id, arttag, context, biompath))
 
-    if attempt_load and ids_tags_contexts_paths:
-        print("operating on %d" % study_id)
-        df = study.sample_template.to_dataframe()
-        redbiom.admin.load_sample_metadata(df)
-        redbiom.admin.load_sample_metadata_full_search(df)
-
-        preps = []
-        for tag, _, _ in ids_tags_contexts_paths:
-            art = qiita_db.artifact.Artifact(tag)
-            pt = art.prep_templates[0].to_dataframe()
-
-            # indexing for text search over prep is very expensive. each
-            # artifact is approximately 75 seconds irrespective of the number
-            # of samples. this overhead results from the the time needed to
-            # stem words using nltk. SO: let's circumvent the tagging system
-            # and tag outside of redbiom.
-
-            pt.index = ['%s_%s' % (tag, i) for i in pt.index]
-            preps.append(pt)
-
-        if preps:
-            prep = pd.concat(preps)
-            prep.where((pd.notnull(prep)), None, inplace=True)  # replace the Nans
-            redbiom.admin.load_sample_metadata(prep)
-            redbiom.admin.load_sample_metadata_full_search(prep)
-
     # Convert to tuple since that allows the entire structure to be used
     # with set theory. This is needed since this ids_tags_contexts_paths 
     # will become an element in another list / tuple, and set operations 
     # do not work with nested lists, but do with nested tuples
     return tuple(ids_tags_contexts_paths)
+
+
+def load_study_metadata(ids_tags_contexts_paths):
+    print("operating on %d" % study_id)
+    df = study.sample_template.to_dataframe()
+    redbiom.admin.load_sample_metadata(df)
+    redbiom.admin.load_sample_metadata_full_search(df)
+
+    preps = []
+    for _, tag, _, _ in ids_tags_contexts_paths:
+        art = qiita_db.artifact.Artifact(tag)
+        pt = art.prep_templates[0].to_dataframe()
+
+        # indexing for text search over prep is very expensive. each
+        # artifact is approximately 75 seconds irrespective of the number
+        # of samples. this overhead results from the the time needed to
+        # stem words using nltk. SO: let's circumvent the tagging system
+        # and tag outside of redbiom.
+
+        pt.index = ['%s_%s' % (tag, i) for i in pt.index]
+        preps.append(pt)
+
+    if preps:
+        prep = pd.concat(preps)
+        prep.where((pd.notnull(prep)), None, inplace=True)  # replace the Nans
+        redbiom.admin.load_sample_metadata(prep)
+        redbiom.admin.load_sample_metadata_full_search(prep)
 
 
 def load_sample_data(tag, context, path):
@@ -228,10 +227,16 @@ def load_study_metadata_of_list(studies_sublist, attempt_load=True):
         attempted to be loaded into redbiom. Defaults to True
     """
 
-    ids_tags_contexts_paths = par(joblib.delayed(load_study_metadata)(s.id, attempt_load)
+    '''ids_tags_contexts_paths = par(joblib.delayed(get_ids_tags_contexts_paths
+                                (s.id, attempt_load)
                                 for s in studies_sublist
-                                if s.sample_template is not None)
+                                 if s.sample_template is not None)'''
+    ids_tags_contexts_paths = []
 
+    for s in studies_sublist:
+        if s.sample_template is not None:
+            ids_tags_contexts_paths.extend(get_ids_tags_contexts_paths(s, s.id))
+    
     return ids_tags_contexts_paths
 
 
@@ -258,7 +263,6 @@ def equal_slices(super_list, sublist_number):
     return slices
 
 
-#if __name__ == '__main__':
 def update():
     # Take redbiom out of read-only mode so that it can be updated
     redbiom.admin.ScriptManager.load_scripts(read_only=False)
@@ -275,7 +279,7 @@ def update():
     # Process the sub-arrays in parallel on eight CPUs in parallel
     ids_tags_contexts_paths = []
     with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
-        ids_tags_contexts_paths.append(par(joblib.delayed(load_study_metadata_of_list)(sub_lists[i])
+        ids_tags_contexts_paths.extend(par(joblib.delayed(load_study_metadata_of_list)(sub_lists[i])
                                     for i in range(len(sub_lists))))
 
     # Diff the two files so I can know what to add, remove,
@@ -286,7 +290,11 @@ def update():
     added, deleted, modified = diff.diff(study_data_old, study_data_new)
     modified_study_ids = [item[0] for item in modified]
 
-    # Now load the data into redbiom
+    # Load metadata into redbiom
+    with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
+        par(joblib.delayed(load_study_metadata)(entry)
+                    for entry in ids_tags_contexts_paths)
+    # load the data into redbiom
     with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
         nsamp = par(joblib.delayed(load_sample_data)(t, c, p)
                     for row in ids_tags_contexts_paths
