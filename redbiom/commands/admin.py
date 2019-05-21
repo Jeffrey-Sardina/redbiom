@@ -103,5 +103,5 @@ def writable():
 def autoupdate():
     "Run an auto update of the redbiom server from the Qiita database"
 
-    import nightly.updater
-    updater.update()
+    import redbiom.nightly.updater
+    redbiom.nightly.updater.update()

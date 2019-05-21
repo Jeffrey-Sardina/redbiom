@@ -190,7 +190,7 @@ def delete_studies_by_id(context, study_ids):
     return len(study_ids)
 
 
-def delete_study_by_id(context, study_id, delete = redbiom._requests.make_delete()):
+def delete_study_by_id(context, study_id):
     """
     Given the ID of a study, deletes that study from the redbiom
     database.
@@ -213,6 +213,7 @@ def delete_study_by_id(context, study_id, delete = redbiom._requests.make_delete
     """
     import redbiom._requests
 
+    delete = redbiom._requests.make_delete()
     delete(context, 'DEL' ,study_id)
 
 
