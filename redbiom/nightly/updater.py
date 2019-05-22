@@ -1,6 +1,6 @@
 import pandas as pd
-import qiita_db
-from qiita_db.util import get_artifacts_information
+#import qiita_db
+#from qiita_db.util import get_artifacts_information
 import biom
 import joblib
 import os
@@ -10,7 +10,7 @@ import json
 import hashlib
 import random
 import time
-import diff
+from redbiom.nightly import diff
 
 
 # I have adapted this code from an original file used by the Knight Lab to perform server updates.
@@ -269,7 +269,7 @@ def update():
 
     # Get studies and shuffle them randomly so study sizes are
     # homogenusously distributed (on average)
-    studies = list(qiita_db.study.Study.get_by_status('public'))
+    '''studies = list(qiita_db.study.Study.get_by_status('public'))
     random.shuffle(studies)
 
     # Split the list into 8 equally-lengthed parts, and load
@@ -288,6 +288,13 @@ def update():
     study_data_old = diff.load_state_file(study_data_old_name)
     study_data_new = tuple(ids_tags_contexts_paths)
     added, deleted, modified = diff.diff(study_data_old, study_data_new)
+    modified_study_ids = [item[0] for item in modified]'''
+
+    #temp for testing
+    study_data_old_name = "truncated.json"
+    study_data_old = diff.load_state_file(study_data_old_name)
+    study_data_new = ids_tags_contexts_paths = diff.load_state_file('truncated.1.json')
+    added, deleted, modified = diff.diff(study_data_old, ids_tags_contexts_paths)
     modified_study_ids = [item[0] for item in modified]
 
     # Load metadata into redbiom
