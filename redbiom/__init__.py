@@ -37,5 +37,4 @@ def get_config():
     """Deal with all the configy bits"""
     import os
     hostname = os.environ.get('REDBIOM_HOST', 'http://qiita.ucsd.edu:7329')
-
     return {'hostname': hostname}

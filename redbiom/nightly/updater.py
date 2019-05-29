@@ -142,7 +142,7 @@ def get_ids_tags_contexts_paths(study, study_id):
 
 
 def load_study_metadata(ids_tags_contexts_paths):
-    print("operating on %d" % study_id)
+    print("operating on %d" % ids_tags_contexts_paths[0])
     df = study.sample_template.to_dataframe()
     redbiom.admin.load_sample_metadata(df)
     redbiom.admin.load_sample_metadata_full_search(df)
@@ -279,7 +279,7 @@ def update():
     # Process the sub-arrays in parallel on eight CPUs in parallel
     ids_tags_contexts_paths = []
     with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
-        ids_tags_contexts_paths.extend(par(joblib.delayed(load_study_metadata_of_list)(sub_lists[i])
+        ids_tags_contexts_paths.append(par(joblib.delayed(load_study_metadata_of_list)(sub_lists[i])
                                     for i in range(len(sub_lists))))
 
     # Diff the two files so I can know what to add, remove,
@@ -293,25 +293,29 @@ def update():
     #temp for testing
     study_data_old_name = "truncated.json"
     study_data_old = diff.load_state_file(study_data_old_name)
-    study_data_new = ids_tags_contexts_paths = diff.load_state_file('truncated.1.json')
-    added, deleted, modified = diff.diff(study_data_old, ids_tags_contexts_paths)
+    study_data_new = diff.load_state_file('truncated.1.json')
+    added, deleted, modified = diff.diff(study_data_old, study_data_new)
     modified_study_ids = [item[0] for item in modified]
 
+    ids_tags_contexts_paths = []
+    for study_data in study_data_new:
+        study_id = study_data[0]
+        arts = study_data[1]
+        for art in arts:
+            ids_tags_contexts_paths.append((study_id, art[0], art[1], art[2]))
+
     # Load metadata into redbiom
-    with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
+    '''with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
         par(joblib.delayed(load_study_metadata)(entry)
-                    for entry in ids_tags_contexts_paths)
-    # load the data into redbiom
+                    for entry in ids_tags_contexts_paths)'''
     with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
         nsamp = par(joblib.delayed(load_sample_data)(t, c, p)
-                    for row in ids_tags_contexts_paths
-                     for i, t, c, p in row
-                      if i[0] in modified_study_ids or i in added)
+                    for i, t, c, p in ids_tags_contexts_paths
+                      if i in modified_study_ids or i in added)
     #And delete anything that is not in the new set
     with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
         nsamp = par(joblib.delayed(delete_sample_data)(i, t, c, p)
-                    for row in ids_tags_contexts_paths
-                     for i, t, c, p in row
+                    for i, t, c, p in ids_tags_contexts_paths
                       if i in deleted)
 
     # Put redbiom back into read-only mode for security
