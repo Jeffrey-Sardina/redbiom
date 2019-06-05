@@ -293,7 +293,7 @@ def update():
     #temp for testing
     study_data_old_name = "truncated.json"
     study_data_old = diff.load_state_file(study_data_old_name)
-    study_data_new = diff.load_state_file('truncated.1.json')
+    study_data_new = diff.load_state_file('output.json')
     added, deleted, modified = diff.diff(study_data_old, study_data_new)
     modified_study_ids = [item[0] for item in modified]
 
@@ -302,7 +302,10 @@ def update():
         study_id = study_data[0]
         arts = study_data[1]
         for art in arts:
-            ids_tags_contexts_paths.append((study_id, art[0], art[1], art[2]))
+            if(len(art) == 3):
+                ids_tags_contexts_paths.append((study_id, art[0], art[1], art[2]))
+            else:
+                ids_tags_contexts_paths.append((study_id, '', '', ''))
 
     # Load metadata into redbiom
     '''with joblib.parallel.Parallel(n_jobs=8, verbose=50) as par:
